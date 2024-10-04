@@ -25,7 +25,15 @@ import commons
 from utils.checkpoint import save_checkpoint, resume_model, resume_train_with_params
 from utils.inference import inference
 
-from eval import resume_info
+# from eval import resume_info
+
+resume_info = {
+    'resume_model': False,
+    'resume_model_path': './logs/HE-dinov2_vitb14-MixVPR/2024-09-10_11-29-15/best_model.pth',
+    'resume_train': False,
+    'resume_train_path': './logs/HE-dinov2_vitb14-MixVPR/2024-09-10_11-29-15/last_checkpoint.pth',
+    'device': 'cuda'
+}
 
 
 train_batch_size = 32
