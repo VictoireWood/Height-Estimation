@@ -9,6 +9,9 @@ import torchvision.transforms as T
 from glob import glob
 import numpy as np
 
+from he_database_generate import height_to_width
+import logging
+
 size = (360, 480)
 
 
@@ -18,8 +21,22 @@ default_transform = T.Compose([
 ])
 
 # NOTE: Hard coded path to dataset folder 
-BASE_PATH = '/root/shared-storage/shaoxingyu/workspace_backup/gsvqddb_train/'
-real_BASE_PATH = '/root/shared-storage/shaoxingyu/workspace_backup/dcqddb_test/'
+# BASE_PATH = '/root/shared-storage/shaoxingyu/workspace_backup/gsvqddb_train/'
+# real_BASE_PATH = '/root/shared-storage/shaoxingyu/workspace_backup/dcqddb_test/'
+
+BASE_PATH = '/root/shared-storage/shaoxingyu/heqd_train/'
+real_BASE_PATH = '/root/shared-storage/shaoxingyu/heqd_test/'
+
+real_BASE_PATH_list = [
+    '/root/shared-storage/shaoxingyu/heqd_test/VPR/',
+    '/root/shared-storage/shaoxingyu/heqd_test/VPR2/',
+    '/root/shared-storage/shaoxingyu/heqd_test/VPR_h400/',
+    '/root/shared-storage/shaoxingyu/heqd_test/VPR_h630/',
+]
+real_BASE_PATH = real_BASE_PATH_list[3]
+
+real_BASE_PATH = '/root/shared-storage/shaoxingyu/heqd_test_real_photo/'
+
 # BASE_PATH = '/root/workspace/gsvqddb_train/'
 # real_BASE_PATH = '/root/workspace/dcqddb_test/'
 
@@ -29,6 +46,7 @@ if not Path(BASE_PATH).exists():
         'BASE_PATH is hardcoded, please adjust to point to gsv_cities')
 
 default_transform = T.Compose([
+    # T.Resize(size, antialias=True),
     # T.Resize(args.train_resize, antialias=True),
     # T.RandomResizedCrop([args.train_resize[0], args.train_resize[1]], scale=[1-0.34, 1], antialias=True),
     T.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.2),  
@@ -113,9 +131,12 @@ class HEDataset(Dataset):
         # height = self.heights[index]
         height = self.heights_tensor[index]
         image_name = f'@{self.year[index]}@{self.flight_height[index]:.2f}@{self.alpha[index]:.2f}@{self.loc_x[index]}@{self.loc_y[index]}@.png'
+        photo_meters_w = height_to_width(self.flight_height[index])
+        image_name = f'@{self.year[index]}@{photo_meters_w:.7f}@{self.flight_height[index]:.2f}@{self.alpha[index]:.2f}@{self.loc_x[index]}@{self.loc_y[index]}@.png'
         # f'{year}@{flight_height}@{alpha}@{loc_w}@{loc_h}.png'
         image_path = self.base_path + f'Images/{self.year[index]}/' + image_name
         image = Image.open(image_path).convert('RGB')
+        
         
         if self.transform:
             image = self.transform(image)

@@ -36,6 +36,8 @@ import random
 import pandas as pd
 import utm
 
+from he_database_generate import height_to_width
+
 # TODO: 
 # 分辨率
 resolution_w = 2048
@@ -48,8 +50,10 @@ if platform.system() == "Windows":
 else:
     slash = '/'
 
-# basedir = '/root/shared-storage/shaoxingyu/workspace_backup/QDRaw/'
-basedir = '/root/workspace/QDRaw/'
+basedir = '/root/shared-storage/shaoxingyu/workspace_backup/QDRaw/'
+# basedir = '/root/workspace/QDRaw/'
+
+
 
 map_dirs = {
         "2013": rf"{basedir}201310{slash}@map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg",  
@@ -69,10 +73,6 @@ def photo_area_meters(flight_height):
     map_tile_meters_w = resolution_w / focal_length * flight_height   # 相机内参矩阵里focal_length的单位是像素
     map_tile_meters_h = resolution_h / focal_length * flight_height # NOTE w768*h576
     return map_tile_meters_h, map_tile_meters_w
-
-def height_to_width(flight_height):
-    map_tile_meters_w = resolution_w / focal_length * flight_height
-    return map_tile_meters_w
 
 
 ## 青岛位于S51区，51区中心经度为123
@@ -160,6 +160,8 @@ def generate_map_tiles(raw_map_path:str, iter_num:int, patches_save_dir:str):
     year_str = list (map_dirs.keys()) [list(map_dirs.values()).index(raw_map_path)]
     # year = int(year_str)
 
+    image_save_dir = os.path.join(patches_save_dir, year_str)
+
     LT_lon = float(gnss_data.split('@')[2]) # left top 左上
     LT_lat = float(gnss_data.split('@')[3])
     RB_lon = float(gnss_data.split('@')[4]) # right bottom 右下
@@ -172,12 +174,12 @@ def generate_map_tiles(raw_map_path:str, iter_num:int, patches_save_dir:str):
     lon_res = (RB_lon - LT_lon) / map_w
     lat_res = (RB_lat - LT_lat) / map_h
 
-    header = pd.DataFrame(columns=['year', 'origin_img', 'flight_height', 'rotation_angle', 'zone_id', 'zone_num', 'utm_e', 'utm_n', 'loc_x', 'loc_y'])
-    csv_dir = patches_save_dir + f'{slash}Dataframes'
-    if not os.path.exists(csv_dir):
-        os.makedirs(csv_dir)
-    csv_dataframe = csv_dir + f'{slash}{year_str}.csv'
-    header.to_csv(csv_dataframe, mode='w', index=False, header=True)
+    # header = pd.DataFrame(columns=['year', 'origin_img', 'flight_height', 'rotation_angle', 'zone_id', 'zone_num', 'utm_e', 'utm_n', 'loc_x', 'loc_y'])
+    # csv_dir = patches_save_dir + f'{slash}Dataframes'
+    # if not os.path.exists(csv_dir):
+    #     os.makedirs(csv_dir)
+    # csv_dataframe = csv_dir + f'{slash}{year_str}.csv'
+    # header.to_csv(csv_dataframe, mode='w', index=False, header=True)
 
     count = 0
     with trange(iter_num, desc=year_str) as tbar:
@@ -205,8 +207,8 @@ def generate_map_tiles(raw_map_path:str, iter_num:int, patches_save_dir:str):
             
             img_seg_pad = crop_rot_img_wo_border(map_data, img_w, img_h, loc_w, loc_h, alpha)
 
-            filename = f'@{year_str}@{flight_height:.2f}@{alpha:.2f}@{loc_w}@{loc_h}@.png'
-            image_save_dir = patches_save_dir + f'{slash}Images{slash}{year_str}'
+            filename = f'@{alpha:06.2f}@{photo_meters_w:012.7f}@{flight_height:6.2f}@{utm_e:017.10f}@{utm_n:017.10f}@.png'
+            # image_save_dir = patches_save_dir + f'{slash}Images{slash}{year_str}'
             if not os.path.exists(image_save_dir):
                 os.makedirs(image_save_dir)
             save_file_path = image_save_dir + f'{slash}{filename}'
@@ -220,8 +222,8 @@ def generate_map_tiles(raw_map_path:str, iter_num:int, patches_save_dir:str):
                 img_seg_pad = cv2.resize(img_seg_pad, (target_w, target_h), interpolation = cv2.INTER_LINEAR)
                 
                 cv2.imwrite(save_file_path, img_seg_pad)
-                data_line = pd.DataFrame([[year_str, raw_map_path, flight_height, alpha, utm_zone_id, utm_zone_num, utm_e, utm_n, loc_w, loc_h]], columns=['year', 'origin_img', 'flight_height', 'rotation_angle', 'zone_id', 'zone_num', 'utm_e', 'utm_n', 'loc_x', 'loc_y'])
-                data_line.to_csv(csv_dataframe, mode='a', index=False, header=False)
+                # data_line = pd.DataFrame([[year_str, raw_map_path, flight_height, alpha, utm_zone_id, utm_zone_num, utm_e, utm_n, loc_w, loc_h]], columns=['year', 'origin_img', 'flight_height', 'rotation_angle', 'zone_id', 'zone_num', 'utm_e', 'utm_n', 'loc_x', 'loc_y'])
+                # data_line.to_csv(csv_dataframe, mode='a', index=False, header=False)
 
             tbar.set_postfix(rate=count/iter_num, tiles=count)
             tbar.update()
@@ -230,14 +232,18 @@ def generate_map_tiles(raw_map_path:str, iter_num:int, patches_save_dir:str):
 if __name__ == '__main__':
 
     
-    stage = "train"
+    # stage = "train"
 
     
     # train
     # patches_save_root_dir = f'/root/shared-storage/shaoxingyu/workspace_backup/gsvqddb_{stage}/'
-    patches_save_root_dir = f'/root/shared-storage/shaoxingyu/height_estimate_db_{stage}/'
+    # patches_save_root_dir = f'/root/workspace/gsvqddb_{stage}/'
 
-    times = 1000
+    # patches_save_root_dir = '/root/workspace/crikff47v38s73fnfgdg/backup/fake_test/'
+    # patches_save_root_dir = '/root/workspace/crikff47v38s73fnfgdg/backup/fake_test/'
+    patches_save_root_dir = '/root/shared-storage/shaoxingyu/heqd_test'
+
+    times = 400
     
 
     total_iterations = len(map_dirs)  # Total iterations  

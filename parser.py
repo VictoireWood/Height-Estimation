@@ -19,9 +19,11 @@ def parse_arguments():
     parser.add_argument("--epochs_num", type=int, default=500, help="_")
     # parser.add_argument("--train_resize", type=int, default=(224, 224), help="_") # ANCHOR
     # parser.add_argument("--train_resize", type=tuple, default=(360, 480), help="_") # REVIEW version 1
-    parser.add_argument("--train_resize", type=int, default=(222, 296), help="_")   # REVIEW    如果用DINOv2，就改成210*280
+    # parser.add_argument("--train_resize", type=int, default=(222, 296), help="_")   # REVIEW    如果用DINOv2，就改成210*280
+    parser.add_argument("--train_resize", type=int, default=(252, 336), help="_")   # REVIEW    如果用DINOv2，就改成210*280
     # parser.add_argument("--test_resize", type=int, default=256, help="_")           # ANCHOR
-    parser.add_argument("--test_resize", type=int, default=222, help="_")           # REVIEW
+    # parser.add_argument("--test_resize", type=int, default=222, help="_")           # REVIEW
+    parser.add_argument("--test_resize", type=int, default=252, help="_")           # REVIEW
 
     parser.add_argument("--lr", type=float, default=0.0001, help="_")
     parser.add_argument("--classifier_lr", type=float, default=0.01, help="_")

@@ -38,7 +38,7 @@ resume_info = {
 
 train_batch_size = 32
 num_workers = 16
-num_epochs = 100
+num_epochs = 150
 
 scheduler_patience = 10
 lr = 0.00001
@@ -104,6 +104,9 @@ test_transform =T.Compose([
     T.ToTensor(),
     T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
+
+
+# from parameters import 
 
 #### 初始化
 commons.make_deterministic(seed)

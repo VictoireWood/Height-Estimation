@@ -50,14 +50,14 @@ class DINOv2(nn.Module):
             t (torch.Tensor): The token [B, C]. This is only returned if return_token is True.
         """
 
-        B, C, H, W = x.shape
+        # B, C, H, W = x.shape
 
-        if H % 14 != 0 or W % 14 != 0:
-            target_size = ((H // 14) * 14, (W // 14) * 14)
-            size = (H, W)
-            cut_size_l = ((size[0]-target_size[0])//2, (size[1]-target_size[1])//2)
-            size_r = (target_size[0] + cut_size_l[0], target_size[1] + cut_size_l[1])
-            x = x[:,:, cut_size_l[0]:size_r[0], cut_size_l[1]:size_r[1]]
+        # if H % 14 != 0 or W % 14 != 0:
+        #     target_size = ((H // 14) * 14, (W // 14) * 14)
+        #     size = (H, W)
+        #     cut_size_l = ((size[0]-target_size[0])//2, (size[1]-target_size[1])//2)
+        #     size_r = (target_size[0] + cut_size_l[0], target_size[1] + cut_size_l[1])
+        #     x = x[:,:, cut_size_l[0]:size_r[0], cut_size_l[1]:size_r[1]]
 
         half = x.dtype == torch.float16
         if half:

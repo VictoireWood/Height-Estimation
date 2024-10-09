@@ -3,6 +3,7 @@ import torch
 import shutil
 import logging
 from collections import OrderedDict
+import numpy as np
 
 
 def move_to_device(optimizer, device):
@@ -76,3 +77,8 @@ def resume_train_with_groups(args, output_folder, model, model_optimizer, classi
     shutil.copy(args.resume_train.replace("last_checkpoint.pth", "best_model.pth"), output_folder)
 
     return model, model_optimizer, classifiers, classifiers_optimizers, best_train_loss, start_epoch_num
+
+def print_nb_params(m):
+    model_parameters = filter(lambda p: p.requires_grad, m.parameters())
+    params = sum([np.prod(p.size()) for p in model_parameters])
+    print(f'Trainable parameters: {params/1e6:.4}M')

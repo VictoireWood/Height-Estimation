@@ -26,7 +26,7 @@ def save_checkpoint(state, is_best, is_best_recall_25, is_best_recall_50, output
 
 def resume_model(model: torch.nn.Module, resume_info = {}):
     logging.info(f"Resuming model from {resume_info['resume_model']}")
-    checkpoint = torch.load(resume_info['resume_model'])
+    checkpoint = torch.load(resume_info['resume_model_path'])
     model_state_dict = checkpoint['model_state_dict']
     if list(model_state_dict.keys())[0].startswith('module'):
         model_state_dict = OrderedDict({k.replace('module.', ''): v for (k, v) in model_state_dict.items()})

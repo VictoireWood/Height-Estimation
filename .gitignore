@@ -5,3 +5,4 @@
 LOGS/
 logs
 logs/*
+best_model.pth
