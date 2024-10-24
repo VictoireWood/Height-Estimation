@@ -3,6 +3,21 @@
 import torch.nn as nn
 import numpy as np
 
+class co_loss(nn.Module):
+    def __init__(self, lamda) -> None:
+        super().__init__()
+        self.lamda = lamda
+        self.main_loss = nn.SmoothL1Loss()
+        self.coherence_loss = nn.MSELoss()
+    
+    def forward(self, pred_group, gt_height):
+        pred_main = pred_group[0]
+        pred_trans = pred_group[1]
+        coherence_loss = self.coherence_loss(pred_main, pred_trans)
+        main_loss = self.main_loss(pred_main, gt_height)
+        loss = main_loss * (1 - self.lamda) + coherence_loss * self.lamda
+        return loss
+
 class huber(nn.Module):
     def __init__(self, delta=10):
         super().__init__()

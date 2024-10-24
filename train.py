@@ -136,7 +136,7 @@ logging.info(f"Arguments: {args}")
 logging.info(f"The outputs are being saved in {args.save_dir}")
 
 #### Dataset & Dataloader
-train_dataset = HEDataset(train_dataset_folders, random_sample_from_each_place=True, transform=train_transform)
+train_dataset = HEDataset(train_dataset_folders, random_sample_from_each_place=True, transform=train_transform, random_transform=True)
 train_dl = DataLoader(train_dataset, batch_size=train_batch_size, num_workers=args.num_workers, shuffle=True, pin_memory=(args.device == "cuda"), drop_last=False, persistent_workers=args.num_workers>0)
 # train_dl = InfiniteDataLoader(train_dataset, batch_size = train_batch_size, shuffle=True, pin_memory=True)
 iterations_num = len(train_dataset) // train_batch_size
@@ -150,7 +150,7 @@ if 'real_photo' in test_datasets:
     test_datasets_load.remove('real_photo')
     test_dataset_list.append(real_photo_dataset)
 if len(test_datasets_load) != 0:
-    fake_photo_dataset = HEDataset(foldernames=test_datasets_load, random_sample_from_each_place=False,transform=test_transform)
+    fake_photo_dataset = HEDataset(foldernames=test_datasets_load, random_sample_from_each_place=False,transform=test_transform, random_transform=False)
     test_dataset_list.append(fake_photo_dataset)
 if len(test_dataset_list) > 1:
     test_dataset = ConcatDataset(test_dataset_list)
@@ -235,6 +235,8 @@ for epoch in range(start_epoch_num, num_epochs):
     iteration = 0
     # for iteration in tqdm_bar:
     for images, heights_gt in train_dl:
+        # if isinstance(images, list):
+
         iteration += 1
         # images, heights_gt = train_dl
         images, heights_gt = images.to(device), heights_gt.to(device)

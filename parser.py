@@ -25,6 +25,9 @@ def parse_arguments():
     # parser.add_argument("--test_resize", type=int, default=222, help="_")           # REVIEW
     parser.add_argument("--test_resize", type=int, nargs="+", default=336, help="_")           # REVIEW
 
+    parser.add_argument('-rt', '--random_transform', action='store_true', help='_')
+    parser.add_argument('--lamda', type=float, default= 0.3, help='一致性损失的权重')
+
     # parser.add_argument("--lr", type=float, default=0.0001, help="_")
     parser.add_argument("--lr", type=float, default=0.0005, help="_")
     # parser.add_argument("--classifier_lr", type=float, default=0.01, help="_")

@@ -12,9 +12,30 @@ import numpy as np
 from he_database_generate import height_to_width
 from commons import scale_down
 # import logging
+import random
 
 size = (360, 480)
 
+# 给图像加变形，看是不是能训练出结果
+def random_transform(image: Image.Image, height):
+    w = image.width
+    h = image.height
+    # rotate = random.uniform(0, 360)
+    scale = random.uniform(1.4, 2)
+    crop_w = w // scale
+    crop_h = h // scale
+    real_scale = ((h / crop_h) + (w / crop_w))/2
+    flip_chance = 0.5
+    rand_transform = T.Compose([
+        T.RandomVerticalFlip(flip_chance),
+        T.RandomHorizontalFlip(flip_chance),
+        T.RandomRotation(180),
+        T.CenterCrop((crop_h, crop_w)),
+        T.Resize((h, w)),
+    ])
+    new_height = height/real_scale
+    new_image = rand_transform(image)
+    return new_image, new_height
 
 default_transform = T.Compose([
     T.ToTensor(),
@@ -39,6 +60,7 @@ default_transform = T.Compose([
 # real_BASE_PATH = '/root/shared-storage/shaoxingyu/heqd_test_real_photo/'
 
 BASE_PATH = '/root/workspace/maps/HE_Train_Large/'
+BASE_PATH = '/root/workspace/maps/HE_Train_qdcity/'
 real_BASE_PATH = '/root/workspace/maps/HE_Test/'
 
 # BASE_PATH = '/root/workspace/gsvqddb_train/'
@@ -70,7 +92,8 @@ class HEDataset(Dataset):
                  foldernames=['2013', '2017', '2019', '2020', '2022'],
                  random_sample_from_each_place=True,
                  transform=default_transform,
-                 base_path=BASE_PATH
+                 base_path=BASE_PATH,
+                 random_transform = True,
                  ):
         super(HEDataset, self).__init__()
         self.base_path = base_path
@@ -81,13 +104,15 @@ class HEDataset(Dataset):
         
         # generate the dataframe contraining images metadata
         self.dataframes = self.__getdataframes()
-        self.heights = list(self.dataframes['flight_height'].values)
-        self.heights_tensor = torch.tensor(self.heights, dtype=torch.float16).unsqueeze(1)
+        # self.heights = list(self.dataframes['flight_height'].values)
+        # self.heights_tensor = torch.tensor(self.heights, dtype=torch.float16).unsqueeze(1)
         self.year = list(self.dataframes['year'])
         self.flight_height = list(self.dataframes['flight_height'])
+        self.heights_tensor = torch.tensor(self.flight_height).unsqueeze(1)
         self.alpha = list(self.dataframes['rotation_angle'])
         self.loc_x = list(self.dataframes['loc_x'])
         self.loc_y = list(self.dataframes['loc_y'])
+        self.random_transform = random_transform
         
         # get all unique place ids
         self.total_nb_images = len(self.dataframes)
@@ -145,11 +170,17 @@ class HEDataset(Dataset):
         
         if self.transform:
             image = self.transform(image)
+
+        if self.random_transform:
+            image_new, height_new = random_transform(image, height)
+            image_out = [image, image_new]
+            height_out = [height, height_new]
+            return image_out, height_out
         return image, height
     
     def __len__(self):
         '''Denotes the total number of places (not images)'''
-        return len(self.heights)
+        return len(self.flight_height)
 
 
 
@@ -180,8 +211,9 @@ class realHEDataset(Dataset):
     @staticmethod
     def get_heights(image_paths):
         info_list = [image_path.split('/')[-1].split('@') for image_path in image_paths]
-        heights = np.array([info[-4] for info in info_list]).astype(np.float16)
-        heights = torch.tensor(heights, dtype=torch.float16).unsqueeze(1)
+        # heights = np.array([info[-4] for info in info_list]).astype(np.float16)
+        # heights = torch.tensor(heights, dtype=torch.float16).unsqueeze(1)
+        heights = torch.tensor([float(info[-4]) for info in info_list])
         return heights
 
 
