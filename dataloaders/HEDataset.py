@@ -10,7 +10,8 @@ from glob import glob
 import numpy as np
 
 from he_database_generate import height_to_width
-import logging
+from commons import scale_down
+# import logging
 
 size = (360, 480)
 
@@ -24,18 +25,21 @@ default_transform = T.Compose([
 # BASE_PATH = '/root/shared-storage/shaoxingyu/workspace_backup/gsvqddb_train/'
 # real_BASE_PATH = '/root/shared-storage/shaoxingyu/workspace_backup/dcqddb_test/'
 
-BASE_PATH = '/root/shared-storage/shaoxingyu/heqd_train/'
-real_BASE_PATH = '/root/shared-storage/shaoxingyu/heqd_test/'
+# BASE_PATH = '/root/shared-storage/shaoxingyu/heqd_train/'
+# real_BASE_PATH = '/root/shared-storage/shaoxingyu/heqd_test/'
 
-real_BASE_PATH_list = [
-    '/root/shared-storage/shaoxingyu/heqd_test/VPR/',
-    '/root/shared-storage/shaoxingyu/heqd_test/VPR2/',
-    '/root/shared-storage/shaoxingyu/heqd_test/VPR_h400/',
-    '/root/shared-storage/shaoxingyu/heqd_test/VPR_h630/',
-]
-real_BASE_PATH = real_BASE_PATH_list[3]
+# real_BASE_PATH_list = [
+#     '/root/shared-storage/shaoxingyu/heqd_test/VPR/',
+#     '/root/shared-storage/shaoxingyu/heqd_test/VPR2/',
+#     '/root/shared-storage/shaoxingyu/heqd_test/VPR_h400/',
+#     '/root/shared-storage/shaoxingyu/heqd_test/VPR_h630/',
+# ]
+# real_BASE_PATH = real_BASE_PATH_list[3]
 
-real_BASE_PATH = '/root/shared-storage/shaoxingyu/heqd_test_real_photo/'
+# real_BASE_PATH = '/root/shared-storage/shaoxingyu/heqd_test_real_photo/'
+
+BASE_PATH = '/root/workspace/maps/HE_Train_Large/'
+real_BASE_PATH = '/root/workspace/maps/HE_Test/'
 
 # BASE_PATH = '/root/workspace/gsvqddb_train/'
 # real_BASE_PATH = '/root/workspace/dcqddb_test/'
@@ -98,14 +102,14 @@ class HEDataset(Dataset):
             for each city in self.cities
         '''
         # read the first city dataframe
-        df = pd.read_csv(self.base_path + 'Dataframes/'+f'{self.foldernames[0]}.csv')
+        df = pd.read_csv(self.base_path + 'Dataframes/'+f'{self.foldernames[0]}.csv', encoding='utf-8', converters = {'year':str})
         df = df.sample(frac=1)  # shuffle the city dataframe
         
 
         # append other cities one by one
         for i in range(1, len(self.foldernames)):
             tmp_df = pd.read_csv(
-                self.base_path+'Dataframes/'+f'{self.foldernames[i]}.csv')
+                self.base_path+'Dataframes/'+f'{self.foldernames[i]}.csv', encoding='utf-8', converters = {'year':str})
 
             # Now we add a prefix to place_id, so that we
             # don't confuse, say, place number 13 of NewYork
@@ -130,9 +134,10 @@ class HEDataset(Dataset):
         
         # height = self.heights[index]
         height = self.heights_tensor[index]
+        # height = scale_down(height) # NOTE: 后期加入归一化，方便收敛
         image_name = f'@{self.year[index]}@{self.flight_height[index]:.2f}@{self.alpha[index]:.2f}@{self.loc_x[index]}@{self.loc_y[index]}@.png'
-        photo_meters_w = height_to_width(self.flight_height[index])
-        image_name = f'@{self.year[index]}@{photo_meters_w:.7f}@{self.flight_height[index]:.2f}@{self.alpha[index]:.2f}@{self.loc_x[index]}@{self.loc_y[index]}@.png'
+        # photo_meters_w = height_to_width(self.flight_height[index])
+        # image_name = f'@{self.year[index]}@{photo_meters_w:.7f}@{self.flight_height[index]:.2f}@{self.alpha[index]:.2f}@{self.loc_x[index]}@{self.loc_y[index]}@.png'
         # f'{year}@{flight_height}@{alpha}@{loc_w}@{loc_h}.png'
         image_path = self.base_path + f'Images/{self.year[index]}/' + image_name
         image = Image.open(image_path).convert('RGB')
@@ -161,6 +166,7 @@ class realHEDataset(Dataset):
     def __getitem__(self, index):
         
         height = self.heights[index]
+        # height = scale_down(height) # NOTE: 后期加入归一化，方便收敛
         image_path = self.images_paths[index]
         image = Image.open(image_path).convert('RGB')
         
@@ -180,5 +186,19 @@ class realHEDataset(Dataset):
 
 
 
-        
+class InfiniteDataLoader(torch.utils.data.DataLoader):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dataset_iterator = super().__iter__()
+    
+    def __iter__(self):
+        return self
+    
+    def __next__(self):
+        try:
+            batch = next(self.dataset_iterator)
+        except StopIteration:
+            self.dataset_iterator = super().__iter__()
+            batch = next(self.dataset_iterator)
+        return batch
     

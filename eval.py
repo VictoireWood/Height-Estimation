@@ -23,17 +23,21 @@ from parameters import backbone_arch, agg_arch, agg_config, regression_in_dim, d
 from utils.checkpoint import resume_model, resume_train_with_params
 from utils.inference import inference
 
+import parser
+args = parser.parse_arguments()
+
 test_datasets = ['real_photo']
 
-resume_info = {
-    'resume_model': True,
-    # 'resume_model_path': './logs/HE-dinov2_vitb14-MixVPR/2024-09-10_11-29-15/best_model.pth',
-    'resume_model_path': '/root/workspace/Height-Estimation/best_model.pth',
-    'resume_train': False,
-    'resume_train_path': './logs/HE-dinov2_vitb14-MixVPR/2024-09-10_11-29-15/last_checkpoint.pth',
-    'device': 'cuda'
-}
+# resume_info = {
+#     'resume_model': True,
+#     # 'resume_model_path': './logs/HE-dinov2_vitb14-MixVPR/2024-09-10_11-29-15/best_model.pth',
+#     'resume_model_path': '/root/workspace/Height-Estimation/best_model.pth',
+#     'resume_train': False,
+#     'resume_train_path': './logs/HE-dinov2_vitb14-MixVPR/2024-09-10_11-29-15/last_checkpoint.pth',
+#     'device': 'cuda'
+# }
 exp_name = f'HE-{backbone_arch}-{agg_arch}'
+# current_dir = os.path.dirname(os.path.abspath(__file__))
 save_dir = os.path.join("logs", exp_name, datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
 
 # commons.make_deterministic(seed)
@@ -65,7 +69,8 @@ model = nn.Sequential(backbone, aggregator, regressor)
 
 # logging.info(f"Feature dim: {model.feature_dim}")
 
-model = resume_model(model, resume_info)
+# model = resume_model(model, resume_info)
+model = resume_model(model)
 
 model.eval()
 

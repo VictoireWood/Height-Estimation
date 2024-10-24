@@ -77,7 +77,8 @@ def print_nb_params(m):
 
 def main():
     # x = torch.randn(32, 1280, 12, 15)
-    x = torch.randn(32, 768, 25, 34)
+    # x = torch.randn(32, 768, 25, 34)
+    # x = torch.randn(32, 2048, 25, 34)
     # agg = MixVPR(
     #     in_channels=1280,
     #     in_h=12,
@@ -87,11 +88,13 @@ def main():
     #     mlp_ratio=1,
     #     out_rows=4)
 
+    x = torch.randn(32, 2048, 12, 15)
+
     agg = MixVPR(
-        in_channels=768,
-        in_h=25,
-        in_w=34,
-        out_channels=384,
+        in_channels=2048,
+        in_h=12,
+        in_w=15,
+        out_channels=1024,
         mix_depth=4,
         mlp_ratio=1,
         out_rows=4)

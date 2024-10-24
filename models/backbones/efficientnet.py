@@ -19,6 +19,7 @@ class EfficientNet(nn.Module):
             layers_to_freeze (int, optional): The number of blocks to freeze (starting from 0) . Defaults to 4.
         """
         super().__init__()
+        model_name = model_name.lower()
         self.model_name = model_name
         self.layers_to_freeze = layers_to_freeze
         self.model = timm.create_model(model_name=model_name, pretrained=pretrained)

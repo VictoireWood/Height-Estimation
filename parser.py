@@ -20,17 +20,27 @@ def parse_arguments():
     # parser.add_argument("--train_resize", type=int, default=(224, 224), help="_") # ANCHOR
     # parser.add_argument("--train_resize", type=tuple, default=(360, 480), help="_") # REVIEW version 1
     # parser.add_argument("--train_resize", type=int, default=(222, 296), help="_")   # REVIEW    如果用DINOv2，就改成210*280
-    parser.add_argument("--train_resize", type=int, default=(252, 336), help="_")   # REVIEW    如果用DINOv2，就改成210*280
+    parser.add_argument("--train_resize", type=int, nargs=2, default=(336, 448), help="_")   # REVIEW    如果用DINOv2，就改成210*280
     # parser.add_argument("--test_resize", type=int, default=256, help="_")           # ANCHOR
     # parser.add_argument("--test_resize", type=int, default=222, help="_")           # REVIEW
-    parser.add_argument("--test_resize", type=int, default=252, help="_")           # REVIEW
+    parser.add_argument("--test_resize", type=int, nargs="+", default=336, help="_")           # REVIEW
 
-    parser.add_argument("--lr", type=float, default=0.0001, help="_")
-    parser.add_argument("--classifier_lr", type=float, default=0.01, help="_")
+    # parser.add_argument("--lr", type=float, default=0.0001, help="_")
+    parser.add_argument("--lr", type=float, default=0.0005, help="_")
+    # parser.add_argument("--classifier_lr", type=float, default=0.01, help="_")
     parser.add_argument("-bb", "--backbone", type=str, default="EfficientNet_B0",
                         # choices=["EfficientNet_B0", "EfficientNet_B5", "EfficientNet_B7"],    # ANCHOR 原始
-                        choices=["EfficientNet_B0", "EfficientNet_B5", "EfficientNet_B7","EfficientNet_V2_M"],  # REVIEW 邵星雨改
+                        # choices=["EfficientNet_B0", "EfficientNet_B5", "EfficientNet_B7","EfficientNet_V2_M"],  # REVIEW 邵星雨改
                         help="_")
+    parser.add_argument('-agg','--aggregator',type=str, default='MixVPR',
+                        choices=['MixVPR', 'SALAD', 'ConvAP', 'CosPlace', 'GeMPool','AvgPool'], 
+                        help="_")
+    parser.add_argument('-ntb', '--num_trainable_blocks', type=int, default=2, help='DINOv2最后可训练的层数')
+    parser.add_argument('-ltf', '--layers_to_freeze', type=int, default=5, help='CNN需要冻结的层数')
+    parser.add_argument('-ltc', '--layers_to_crop', type=int, nargs="+", default=[], choices=[3,4], help='resnet需要裁剪的层数')
+    parser.add_argument('--regression_ratio', type=float, default=0.5, help="_")
+    parser.add_argument('-moc','--mixvpr_out_channels', type=int, default=None, help="_")
+
     # EDIT
     # Test parameters
     parser.add_argument('--threshold', type=int, default=None, help="验证是否成功召回的可容许偏差的距离，单位为米")    # REVIEW M自适应的话可以不设置
@@ -48,7 +58,8 @@ def parse_arguments():
     parser.add_argument("--exp_name", type=str, default="default",
                         help="name of experiment. The logs will be saved in a folder with such name")
     parser.add_argument("--dataset_name", type=str, default="sf_xl",
-                        choices=["sf_xl", "tokyo247", "pitts30k", "pitts250k","QingDao_Flight"], help="_")   # REVIEW
+                        # choices=["sf_xl", "tokyo247", "pitts30k", "pitts250k","QingDao_Flight"], 
+                        help="_")   # REVIEW
                         # choices=["sf_xl", "tokyo247", "pitts30k", "pitts250k"], help="_") # ANCHOR
     parser.add_argument("--train_set_path", type=str, default=None,
                         help="path to folder of train set")
@@ -61,7 +72,7 @@ def parse_arguments():
 
     # EDIT
     if args.exp_name == "default":
-        args.exp_name = f'udc-{args.backbone}-{args.classifier_type}-{args.N}-{args.M}-h{flight_heights[0]}~{flight_heights[-1]}'
+        args.exp_name = f'he-{args.backbone}-{args.aggregator}'
 
 
     args.save_dir = os.path.join("logs", args.exp_name, datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))

@@ -52,7 +52,8 @@ class MHA(nn.Module):
 
 
 class MLP(nn.Module):
-    def __init__(self, in_dim, mlp_ratio=1):
+    def __init__(self, in_dim, mlp_ratio=1):    # NOTE 能收敛的那次设的是1
+    # def __init__(self, in_dim, mlp_ratio=1.2):
         super(MLP, self).__init__()
         mid_dim = int(in_dim * mlp_ratio)
 
@@ -60,7 +61,7 @@ class MLP(nn.Module):
             nn.LayerNorm(in_dim),
             nn.Linear(in_dim, mid_dim),
             nn.ReLU(inplace=True),
-            nn.Linear(mid_dim, mid_dim),
+            nn.Linear(mid_dim, in_dim),
             nn.ReLU(inplace=True)
         )
 
@@ -74,14 +75,14 @@ class Regression(nn.Module):
         super().__init__()
         mid_dim = int(in_dim * regression_ratio)
         end_dim = int(mid_dim * regression_ratio)
-        self.regress = nn.Sequential(
-            MHA(in_dim, in_dim),
-            MLP(in_dim, mlp_ratio=regression_ratio),
-            MHA(mid_dim, mid_dim),
-            MLP(in_dim, mlp_ratio=regression_ratio),
-            nn.Linear(end_dim, 8),
-            nn.Linear(8, 1)
-        )
+        # self.regress = nn.Sequential(
+        #     MHA(in_dim, in_dim),
+        #     MLP(in_dim, mlp_ratio=regression_ratio),
+        #     MHA(mid_dim, mid_dim),
+        #     MLP(in_dim, mlp_ratio=regression_ratio),
+        #     nn.Linear(end_dim, 8),
+        #     nn.Linear(8, 1)
+        # )
         self.mid_dim = mid_dim
         self.l_pre = nn.Linear(in_dim, mid_dim)
         # self.mha1 = MHA(in_dim, in_dim)
@@ -96,7 +97,9 @@ class Regression(nn.Module):
         # self.l2 = nn.Linear(end_dim, 8)
         # self.l3 = nn.Linear(8, 1)
         # self.l5 = nn.Linear(mid_dim, 1)
-        self.l4 = nn.Linear(mid_dim, 8)
+        # self.l4 = nn.Linear(mid_dim, 1)
+        self.l4 = nn.Linear(mid_dim, 8)   # NOTE: 青岛地区能跑起来的时候用的是8维特征+向量乘自己的转置
+        self.relu = nn.ReLU()   # 这里是后来加的
         
         
     def forward(self, x):
@@ -117,7 +120,10 @@ class Regression(nn.Module):
         # h = self.l3(h)
         # h = self.l5(h)
         h = torch.matmul(h.view(x.size(0),1,-1), h.view(x.size(0),1,-1).transpose(1, 2))
-        h = h.squeeze(dim=1)
+        # h = self.relu(h)
+        # h = h.squeeze(dim=1)
+        h = h.squeeze()
+        # h = scale_up(h)
         return h
         
     
@@ -130,8 +136,8 @@ if __name__ == '__main__':
     # x = torch.randn(32, 2560)
     # m = Regression(in_dim=2560
     #                )
-    x = torch.randn(32, 1536)
-    m = Regression(in_dim=1536
+    x = torch.randn(32, 1024)
+    m = Regression(in_dim=1024
                    )
     r = m(x)
     print_nb_params(m)

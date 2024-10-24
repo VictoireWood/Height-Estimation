@@ -6,13 +6,12 @@ import utm
 
 src_dir = '/root/shared-storage/shaoxingyu/QingDaoUAVPic'
 # dst_dir = '/root/shared-storage/shaoxingyu/workspace_backup/dcqd_test'
-dst_dir = '/root/shared-storage/shaoxingyu/heqd_test'
+dst_dir = '/root/workspace/maps/real_photos'
 
 copy = False
 
 # NOTE: 原始格式@120.4280576000@36.5972545000@.png
-# 目标是@高度@角度@经度1@纬度1@经度2@纬度2@utm_e@utm_n@.png
-# @高度@none@none@none@none@none@utm_e@utm_n@.png
+# filename = f'@{year_str}@{flight_height:.2f}@{alpha:.2f}@{loc_w}@{loc_h}@.png'
 
 if not os.path.exists(dst_dir):
     os.makedirs(dst_dir)
@@ -46,6 +45,7 @@ for img_path in scr_images_paths:
             flight_height = 630
         # photo_meters_w = height_to_width(flight_height)
         filename = f'@none@{flight_height:3d}@{utm_e:017.10f}@{utm_n:017.10f}@.png'
+        print(filename)
         # filename = f'@none@{photo_meters_w:012.7f}@{flight_height:3d}@{utm_e:017.10f}@{utm_n:017.10f}@.png'
         new_path = img_info[0] + filename
         os.rename(img_path, new_path)

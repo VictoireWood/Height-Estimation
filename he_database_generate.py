@@ -43,17 +43,20 @@ resolution_h = 1536
 # 焦距
 focal_length = 1200  # TODO: the intrinsics of the camera
 
+max_h = 1200
+min_h = 50
+
 if platform.system() == "Windows":
     slash = '\\'
 else:
     slash = '/'
 
-# basedir = '/root/shared-storage/shaoxingyu/workspace_backup/QDRaw/'
-basedir = '/root/workspace/QDRaw/'
+basedir = '/root/shared-storage/shaoxingyu/workspace_backup/QDRaw/'
+# basedir = '/root/workspace/QDRaw/'
 
 map_dirs = {
-        "2013": rf"{basedir}201310{slash}@map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg",  
-        "2017": rf"{basedir}201710{slash}@map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg",
+        # "2013": rf"{basedir}201310{slash}@map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg",  
+        # "2017": rf"{basedir}201710{slash}@map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg",
         "2019": rf"{basedir}201911{slash}@map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg",
         "2020": rf"{basedir}202002{slash}@map@120.421142578125@36.6064453125@120.48418521881104@36.573829650878906@.jpg",  
         "2022": rf"{basedir}202202{slash}@map@120.42118549346924@36.60643328438966@120.4841423034668@36.573836401969416@.jpg"
@@ -165,7 +168,8 @@ def generate_map_tiles(raw_map_path:str, iter_num:int, patches_save_dir:str):
     RB_lon = float(gnss_data.split('@')[4]) # right bottom 右下
     RB_lat = float(gnss_data.split('@')[5])
 
-    height_range = [150, 900]
+    # height_range = [50, 1200]
+    height_range = [min_h, max_h]
 
     mid_lat = (LT_lat + RB_lat) / 2
     mid_lon = (LT_lon + RB_lon) / 2
@@ -225,6 +229,7 @@ def generate_map_tiles(raw_map_path:str, iter_num:int, patches_save_dir:str):
 
             tbar.set_postfix(rate=count/iter_num, tiles=count)
             tbar.update()
+            tbar.refresh()
         
 
 if __name__ == '__main__':
@@ -237,13 +242,19 @@ if __name__ == '__main__':
     # patches_save_root_dir = f'/root/shared-storage/shaoxingyu/workspace_backup/gsvqddb_{stage}/'
     patches_save_root_dir = f'/root/shared-storage/shaoxingyu/height_estimate_db_{stage}/'
 
-    times = 1000
+    times = 15000
     
 
     total_iterations = len(map_dirs)  # Total iterations  
     current_iteration = 0  # To keep track of progress  
     
     for year, map_dir in map_dirs.items():
+
+        map_data = cv2.imread(map_dir)
+        map_w = map_data.shape[1]   # 大地图像素宽度
+        map_h = map_data.shape[0]   # 大地图像素高度
+        times = int(math.sqrt(map_w*map_h))
+        del map_data, map_w, map_h
 
 
         if not os.path.exists(patches_save_root_dir):  

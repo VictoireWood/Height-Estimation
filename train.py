@@ -17,57 +17,62 @@ import sys
 import torchmetrics
 from tqdm import tqdm
 from math import sqrt
+import numpy as np
 
-from dataloaders.HEDataset import HEDataset, realHEDataset
+from dataloaders.HEDataset import HEDataset, realHEDataset, InfiniteDataLoader
 from models import helper, regression
 import commons
 
 from utils.checkpoint import save_checkpoint, resume_model, resume_train_with_params
-from utils.inference import inference
+from utils.inference import inference, inference_statistics
+from he_database_generate import max_h, min_h
 
-# from eval import resume_info
+import parser
 
-resume_info = {
-    'resume_model': False,
-    'resume_model_path': './logs/HE-dinov2_vitb14-MixVPR/2024-09-10_11-29-15/best_model.pth',
-    'resume_train': False,
-    'resume_train_path': './logs/HE-dinov2_vitb14-MixVPR/2024-09-10_11-29-15/last_checkpoint.pth',
-    'device': 'cuda'
-}
+args = parser.parse_arguments()
+
+# resume_info = {
+#     'resume_model': False,
+#     'resume_model_path': './logs/HE-dinov2_vitb14-MixVPR/2024-09-10_11-29-15/best_model.pth',
+#     'resume_train': False,
+#     'resume_train_path': './logs/HE-dinov2_vitb14-MixVPR/2024-09-10_11-29-15/last_checkpoint.pth',
+#     'device': 'cuda'
+# }
+
+seed = args.seed
+train_batch_size = args.batch_size
+num_workers = args.num_workers
+num_epochs = args.epochs_num
+scheduler_patience = args.scheduler_patience
+lr = args.lr
+
+device = args.device
+
+backbone_arch = args.backbone
+agg_arch = args.aggregator
+agg_config = {}
 
 
-train_batch_size = 32
-num_workers = 16
-num_epochs = 150
-
-scheduler_patience = 10
-lr = 0.00001
-
-seed = 0
-
-resume_train = False
-# resume_model = 
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
-
-foldernames=['2013', '2017', '2019', '2020', '2022', 'real_photo']
+foldernames=['2013', '2017', '2019', '2020', '2022', '0001', '0002', '0003', '0004', 'real_photo']
+train_dataset_folders = ['2013', '2017', '2019', '2020', '2022', '0001', '0002', '0003', '0004']
 train_dataset_folders = ['2013', '2017', '2019', '2020', '2022']
+# train_dataset_folders = ['2013']
 test_datasets = ['real_photo']
 
-image_size = (360, 480)
+# image_size = (360, 480)
 
 range_threshold = [25, 50, 75, 100, 125, 150]
 
-backbone_arch = 'efficientnet_v2_m'
-agg_arch='MixVPR'
-agg_config={'in_channels' : 1280,
-            'in_h' : 12,
-            'in_w' : 15,
-            'out_channels' : 640,
-            'mix_depth' : 4,
-            'mlp_ratio' : 1,
-            'out_rows' : 4,
-            }   # the output dim will be (out_rows * out_channels)
+# backbone_arch = 'efficientnet_v2_m'
+# agg_arch='MixVPR'
+# agg_config={'in_channels' : 1280,
+#             'in_h' : 12,
+#             'in_w' : 15,
+#             'out_channels' : 640,
+#             'mix_depth' : 4,
+#             'mlp_ratio' : 1,
+#             'out_rows' : 4,
+#             }   # the output dim will be (out_rows * out_channels)
 
 
 # backbone_arch = 'dinov2_vitb14'
@@ -82,42 +87,58 @@ agg_config={'in_channels' : 1280,
 #             }   # the output dim will be (out_rows * out_channels)
 
 
-regression_in_dim = agg_config['out_rows'] * agg_config['out_channels']
-regression_ratio = 0.5
+# regression_in_dim = agg_config['out_rows'] * agg_config['out_channels']
+# regression_ratio = 0.5
 
-
-
-exp_name = f'HE-{backbone_arch}-{agg_arch}'
-save_dir = os.path.join("logs", exp_name, datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+if 'dinov2' in args.backbone.lower():
+    backbone_info = {
+        'input_size': args.train_resize,
+        'num_trainable_blocks': args.num_trainable_blocks,
+    }
+elif 'efficientnet_v2' in args.backbone.lower():
+    backbone_info = {
+        'input_size': args.train_resize,
+        'layers_to_freeze': args.layers_to_freeze,
+    }
+elif 'efficientnet' in args.backbone.lower():
+    backbone_info = {
+        'input_size': args.train_resize,
+        'layers_to_freeze': args.layers_to_freeze,
+    }
+elif 'resnet' in args.backbone.lower():
+    backbone_info = {
+        'input_size': args.train_resize,
+        'layers_to_freeze': args.layers_to_freeze,
+        'layers_to_crop': list(args.layers_to_crop),
+    }
 
 
 train_transform = T.Compose([
-    T.Resize(image_size, antialias=True),
+    T.Resize(args.train_resize, antialias=True),
     # T.RandomResizedCrop([args.train_resize[0], args.train_resize[1]], scale=[1-0.34, 1], antialias=True),
-    T.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.2),  
-    T.RandomAffine(degrees=20, translate=(0.1, 0.1), shear=15),
+    T.ColorJitter(brightness=0.2, contrast=0.3, saturation=0.3, hue=0.2),
+    # T.RandomAffine(degrees=20, translate=(0.1, 0.1), shear=15),
     T.ToTensor(),
     T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
 test_transform =T.Compose([
+    T.Resize(args.test_resize, antialias=True),
     T.ToTensor(),
     T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
-
-# from parameters import 
-
 #### 初始化
 commons.make_deterministic(seed)
-commons.setup_logging(save_dir, console="info")
+commons.setup_logging(args.save_dir, console="info")
 logging.info(" ".join(sys.argv))
-# logging.info(f"Arguments: {args}")
-logging.info(f"The outputs are being saved in {save_dir}")
+logging.info(f"Arguments: {args}")
+logging.info(f"The outputs are being saved in {args.save_dir}")
 
 #### Dataset & Dataloader
-train_dataset = HEDataset(train_dataset_folders, random_sample_from_each_place=True,transform=train_transform)
-train_dl = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True)
+train_dataset = HEDataset(train_dataset_folders, random_sample_from_each_place=True, transform=train_transform)
+train_dl = DataLoader(train_dataset, batch_size=train_batch_size, num_workers=args.num_workers, shuffle=True, pin_memory=(args.device == "cuda"), drop_last=False, persistent_workers=args.num_workers>0)
+# train_dl = InfiniteDataLoader(train_dataset, batch_size = train_batch_size, shuffle=True, pin_memory=True)
 iterations_num = len(train_dataset) // train_batch_size
 logging.info(f'Found {len(train_dataset)} images in the training set.' )
 
@@ -125,7 +146,7 @@ logging.info(f'Found {len(train_dataset)} images in the training set.' )
 test_dataset_list = []
 test_datasets_load = test_datasets
 if 'real_photo' in test_datasets:
-    real_photo_dataset = realHEDataset()
+    real_photo_dataset = realHEDataset(transform=test_transform)
     test_datasets_load.remove('real_photo')
     test_dataset_list.append(real_photo_dataset)
 if len(test_datasets_load) != 0:
@@ -136,23 +157,31 @@ if len(test_dataset_list) > 1:
 else:
     test_dataset = test_dataset_list[0]
 test_img_num = len(test_dataset)
-test_dl = DataLoader(dataset=test_dataset, batch_size=1, shuffle=False, num_workers=2, pin_memory=True)
+logging.info(f'Found {test_img_num} images in the test set.' )
+test_dl = DataLoader(dataset=test_dataset, batch_size=1, shuffle=False, num_workers=2, pin_memory=True, persistent_workers=True)
 
 #### model
-backbone = helper.get_backbone(backbone_arch=backbone_arch, pretrained=True, layers_to_freeze=7, layers_to_crop=[])
-aggregator = helper.get_aggregator(agg_arch=agg_arch, agg_config=agg_config)
-regressor = regression.Regression(in_dim=regression_in_dim, regression_ratio=regression_ratio)
+# backbone = helper.get_backbone(backbone_arch=backbone_arch, pretrained=True, layers_to_freeze=7, layers_to_crop=[])
+# aggregator = helper.get_aggregator(agg_arch=agg_arch, agg_config=agg_config)
+# regressor = regression.Regression(in_dim=regression_in_dim, regression_ratio=regression_ratio)
 
 # backbone = helper.get_backbone(backbone_arch=backbone_arch, num_trainable_blocks=2)
 # aggregator = helper.get_aggregator(agg_arch=agg_arch, agg_config=agg_config)
 # regressor = regression.Regression(in_dim=regression_in_dim, regression_ratio=regression_ratio)
 
-backbone = backbone.to(device)
-aggregator = aggregator.to(device)
-regressor = regressor.to(device)
+# backbone = backbone.to(device)
+# aggregator = aggregator.to(device)
+# regressor = regressor.to(device)
 
-model = nn.Sequential(backbone, aggregator, regressor)
+# model = nn.Sequential(backbone, aggregator, regressor)
 # model = nn.Sequential(backbone, aggregator)
+
+model = helper.HeightEstimator(backbone_arch=backbone_arch, backbone_info=backbone_info, agg_arch=agg_arch, agg_config=agg_config, regression_ratio=args.regression_ratio)
+
+# 看model的可训练参数多少
+model_parameters = filter(lambda p: p.requires_grad, model.parameters())
+params = sum([np.prod(p.size()) for p in model_parameters])
+logging.info(f'Trainable parameters: {params/1e6:.4}M')
 
 #### OPTIMIZER & SCHEDULER
 optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -167,18 +196,22 @@ scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=scheduler_p
 #     best_loss = best_train_loss
 #     logging.info(f"Resuming from epoch {start_epoch_num} with best train loss {best_train_loss:.2f} " +
 #                  f"from checkpoint {args.resume_train}")
-if resume_info['resume_model']:
-    model = resume_model(model, resume_info)
+# if resume_info['resume_model']:
+if args.resume_model is not None:
+    model = resume_model(model)
 
-if resume_info['resume_train']:
-    model, optimizer, scheduler, best_loss = resume_train_with_params(model, optimizer, scheduler, resume_info)
+# if resume_info['resume_train']:
+if args.resume_train is not None:
+    model, optimizer, best_loss, start_epoch_num = resume_train_with_params(model, optimizer, scheduler)
+else:
+    start_epoch_num = 0
+    best_loss = 10000
 
+model = model.to(device)
 
-
-best_loss = 1500
 ### Train&Loss
-best_val_recall_25 = 10
-best_val_recall_50 = 20
+# best_val_recall_25 = 10
+# best_val_recall_50 = 20
 
 # 初始化模型、损失函数和优化器
 criterion = nn.MSELoss()
@@ -187,13 +220,13 @@ scaler = torch.GradScaler(device)
 
 
 # 训练模型
-for epoch in range(num_epochs):
+for epoch in range(start_epoch_num, num_epochs):
     if optimizer.param_groups[0]['lr'] < 1e-6:
         logging.info('LR dropped below 1e-6, stopping training...')
         break
 
     train_loss = torchmetrics.MeanMetric().to(device)
-    train_acc = torchmetrics.Accuracy(task='binary').to(device)
+    # train_acc = torchmetrics.Accuracy(task='binary').to(device)
 
 
     
@@ -211,9 +244,6 @@ for epoch in range(num_epochs):
             # disctiptors = model(images)
             # heights_pred = regressor(disctiptors)
             # loss = cross_entropy_loss(disctiptors, heights_gt)
-
-            if iteration > 155:
-                pass
             heights_pred = model(images)
             loss = criterion(heights_pred, heights_gt)
             # loss = loss / train_batch_size
@@ -225,7 +255,8 @@ for epoch in range(num_epochs):
         scaler.update()
         # train_acc.update(heights_pred, heights_gt)
         train_loss.update(loss.item())
-        tqdm_bar.set_description(f"{loss.item():.1f}")
+        # tqdm_bar.set_description(f"{loss.item():.2f}/{loss.item()*(max_h-min_h)**2:.1f}")
+        tqdm_bar.set_description(f"{loss.item():08.2f}")
         # tqdm_bar.n = (100*iteration) // iterations_num
         _ = tqdm_bar.refresh()
         _ = tqdm_bar.update()
@@ -233,6 +264,7 @@ for epoch in range(num_epochs):
     #### Validation
 
     val_recall_str, valid_recall_percentage = inference(model, test_dl, range_threshold, test_img_num, device)
+    test_result_str, statistical_results_str = inference_statistics(model, test_dl, test_img_num, device)
     
     '''model.eval()
 
@@ -268,15 +300,15 @@ for epoch in range(num_epochs):
     else:
         is_best = False
 
-    if valid_recall_percentage[0] > best_val_recall_25:
-        is_best_recall_25 = True
-    else:
-        is_best_recall_25 = False
+    # if valid_recall_percentage[0] > best_val_recall_25:
+    #     is_best_recall_25 = True
+    # else:
+    #     is_best_recall_25 = False
     
-    if valid_recall_percentage[1] > best_val_recall_50:
-        is_best_recall_50 = True
-    else:
-        is_best_recall_50 = False
+    # if valid_recall_percentage[1] > best_val_recall_50:
+    #     is_best_recall_50 = True
+    # else:
+    #     is_best_recall_50 = False
 
     logging.info(f"E{epoch: 3d}, " + 
                 #  f"train_acc: {train_acc.item():.1f}, " +
@@ -284,6 +316,8 @@ for epoch in range(num_epochs):
                  f"not improved for {scheduler.num_bad_epochs}/{scheduler_patience} epochs, " +
                  f"lr: {round(optimizer.param_groups[0]['lr'], 21)}")
     logging.info(f"E{epoch: 3d}, Val LR: {val_recall_str}") # NOTE 测试召回率？
+    logging.info(f"E{epoch: 3d}, {test_result_str}")
+    logging.info(f"E{epoch: 3d}, {statistical_results_str}")
 
     scheduler.step(train_loss)
     
@@ -294,7 +328,8 @@ for epoch in range(num_epochs):
         # "optimizers_state_dict": [c.state_dict() for c in classifiers_optimizers],
         # "args": args,
         "best_train_loss": best_loss
-    }, is_best,is_best_recall_25, is_best_recall_50, save_dir)
+    }, is_best, args.save_dir)
+    # }, is_best,is_best_recall_25, is_best_recall_50, args.save_dir)
 
 
 print("Training complete.")

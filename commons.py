@@ -9,7 +9,7 @@ import traceback
 from os.path import join
 import random
 import numpy as np
-
+from he_database_generate import max_h, min_h
 
 def setup_logging(output_folder, console="debug",
                   info_filename="info.log", debug_filename="debug.log"):
@@ -74,3 +74,16 @@ def make_deterministic(seed=0):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
+def scale_up(pred_values):
+    # max_h = 1200
+    # min_h = 50
+    range_h = max_h - min_h
+    scale_result = range_h * pred_values + min_h
+    return scale_result
+
+
+def scale_down(gt_values):
+    range_h = max_h - min_h
+    scale_result = (gt_values - min_h) / range_h
+    return scale_result
